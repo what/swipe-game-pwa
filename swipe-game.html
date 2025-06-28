@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swipe Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .square {
+            transition: all 0.3s ease-out;
+            transform-origin: center;
+        }
+        
+        .square-enter {
+            transform: scale(0) rotate(0deg);
+            opacity: 0;
+        }
+        
+        .square-active {
+            transform: scale(1) rotate(360deg);
+            opacity: 1;
+        }
+        
+        .square-exit {
+            transform: scale(0.5) rotate(720deg);
+            opacity: 0;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 min-h-screen">
+    <div id="gameContainer" class="w-full h-screen relative overflow-hidden cursor-pointer select-none">
+        <!-- Squares will be dynamically added here -->
+        <div id="instructionText" class="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold opacity-50 pointer-events-none">
+            Swipe in any direction!
+        </div>
+    </div>
+
+    <script>
+        class SwipeGame {
+            constructor() {
+                this.container = document.getElementById('gameContainer');
+                this.instructionText = document.getElementById('instructionText');
+                this.squares = [];
+                this.touchStartX = 0;
+                this.touchStartY = 0;
+                this.touchEndX = 0;
+                this.touchEndY = 0;
+                this.minSwipeDistance = 50;
+                this.hasStarted = false;
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                // Touch events for mobile
+                this.container.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
+                this.container.addEventListener('touchmove', (e) => this.handleTouchMove(e), { passive: false });
+                this.container.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
+                
+                // Mouse events for desktop testing
+                this.container.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.container.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.container.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                
+                // Prevent default behaviors
+                this.container.addEventListener('contextmenu', (e) => e.preventDefault());
+                this.container.addEventListener('selectstart', (e) => e.preventDefault());
+            }
+            
+            handleTouchStart(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                this.touchStartX = touch.clientX;
+                this.touchStartY = touch.clientY;
+            }
+            
+            handleTouchMove(e) {
+                e.preventDefault();
+            }
+            
+            handleTouchEnd(e) {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                this.touchEndX = touch.clientX;
+                this.touchEndY = touch.clientY;
+                this.handleSwipe();
+            }
+            
+            handleMouseDown(e) {
+                this.touchStartX = e.clientX;
+                this.touchStartY = e.clientY;
+                this.isMouseDown = true;
+            }
+            
+            handleMouseMove(e) {
+                if (!this.isMouseDown) return;
+                this.touchEndX = e.clientX;
+                this.touchEndY = e.clientY;
+            }
+            
+            handleMouseUp(e) {
+                if (!this.isMouseDown) return;
+                this.isMouseDown = false;
+                this.touchEndX = e.clientX;
+                this.touchEndY = e.clientY;
+                this.handleSwipe();
+            }
+            
+            handleSwipe() {
+                const deltaX = this.touchEndX - this.touchStartX;
+                const deltaY = this.touchEndY - this.touchStartY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                if (distance < this.minSwipeDistance) return;
+                
+                // Hide instruction text after first swipe
+                if (!this.hasStarted) {
+                    this.hasStarted = true;
+                    this.instructionText.style.opacity = '0';
+                    setTimeout(() => {
+                        this.instructionText.style.display = 'none';
+                    }, 300);
+                }
+                
+                // Determine swipe direction
+                let direction;
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    direction = deltaX > 0 ? 'right' : 'left';
+                } else {
+                    direction = deltaY > 0 ? 'down' : 'up';
+                }
+                
+                this.generateSquares(direction);
+            }
+            
+            generateSquares(direction) {
+                // Clear existing squares
+                this.clearSquares();
+                
+                // Generate 3-5 random squares
+                const numSquares = Math.floor(Math.random() * 3) + 3;
+                
+                for (let i = 0; i < numSquares; i++) {
+                    setTimeout(() => {
+                        this.createSquare(direction, i);
+                    }, i * 100);
+                }
+            }
+            
+            createSquare(direction, index) {
+                const square = document.createElement('div');
+                const size = Math.floor(Math.random() * 100) + 50; // 50-150px
+                const hue = Math.floor(Math.random() * 360);
+                const saturation = Math.floor(Math.random() * 50) + 50; // 50-100%
+                const lightness = Math.floor(Math.random() * 40) + 40; // 40-80%
+                
+                square.className = 'square square-enter absolute rounded-lg shadow-lg border-2 border-white border-opacity-30';
+                square.style.width = `${size}px`;
+                square.style.height = `${size}px`;
+                square.style.backgroundColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                square.style.boxShadow = `0 0 20px hsla(${hue}, ${saturation}%, ${lightness}%, 0.5)`;
+                
+                // Position based on direction
+                this.positionSquare(square, direction, index);
+                
+                this.container.appendChild(square);
+                this.squares.push(square);
+                
+                // Animate in
+                setTimeout(() => {
+                    square.classList.remove('square-enter');
+                    square.classList.add('square-active');
+                }, 50);
+                
+                // Add pulse effect
+                setTimeout(() => {
+                    square.classList.add('pulse-animation');
+                }, 100);
+            }
+            
+            positionSquare(square, direction, index) {
+                const containerWidth = this.container.clientWidth;
+                const containerHeight = this.container.clientHeight;
+                const squareSize = parseInt(square.style.width);
+                
+                let x, y;
+                
+                switch (direction) {
+                    case 'up':
+                        x = Math.random() * (containerWidth - squareSize);
+                        y = containerHeight + (index * 100);
+                        square.style.left = `${x}px`;
+                        square.style.top = `${y}px`;
+                        setTimeout(() => {
+                            square.style.top = `${Math.random() * (containerHeight - squareSize)}px`;
+                        }, 100);
+                        break;
+                        
+                    case 'down':
+                        x = Math.random() * (containerWidth - squareSize);
+                        y = -squareSize - (index * 100);
+                        square.style.left = `${x}px`;
+                        square.style.top = `${y}px`;
+                        setTimeout(() => {
+                            square.style.top = `${Math.random() * (containerHeight - squareSize)}px`;
+                        }, 100);
+                        break;
+                        
+                    case 'left':
+                        x = containerWidth + (index * 100);
+                        y = Math.random() * (containerHeight - squareSize);
+                        square.style.left = `${x}px`;
+                        square.style.top = `${y}px`;
+                        setTimeout(() => {
+                            square.style.left = `${Math.random() * (containerWidth - squareSize)}px`;
+                        }, 100);
+                        break;
+                        
+                    case 'right':
+                        x = -squareSize - (index * 100);
+                        y = Math.random() * (containerHeight - squareSize);
+                        square.style.left = `${x}px`;
+                        square.style.top = `${y}px`;
+                        setTimeout(() => {
+                            square.style.left = `${Math.random() * (containerWidth - squareSize)}px`;
+                        }, 100);
+                        break;
+                }
+            }
+            
+            clearSquares() {
+                this.squares.forEach((square, index) => {
+                    setTimeout(() => {
+                        square.classList.remove('square-active');
+                        square.classList.add('square-exit');
+                        setTimeout(() => {
+                            if (square.parentNode) {
+                                square.parentNode.removeChild(square);
+                            }
+                        }, 300);
+                    }, index * 50);
+                });
+                this.squares = [];
+            }
+        }
+        
+        // Initialize the game when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SwipeGame();
+        });
+        
+        // Prevent zoom on iOS
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+        document.addEventListener('gestureend', (e) => e.preventDefault());
+    </script>
+</body>
+</html>
